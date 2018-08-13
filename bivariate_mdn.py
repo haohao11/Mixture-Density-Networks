@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 import math
 
+
 NHIDDEN_1 = 5 * 6
 NHIDDEN_2 = 5 * 6
 STDEV = 0.5
@@ -10,10 +11,10 @@ KMIX = 5  # number of mixtures
 NOUT = KMIX * 6  # pi, 2 for mu, 2 for stddev, rho
 
 NSAMPLE = 2400
-
 save_path = "./model_weights/bivar_mdn/model"
 
 
+# Function to generate 2D training data
 def generate_data():
     c1 = np.float32(np.random.uniform(-10, 10, (1, NSAMPLE))).T
     c2 = np.float32(np.random.uniform(-10, 10, (1, NSAMPLE))).T
@@ -21,10 +22,11 @@ def generate_data():
     r_data = np.float32(np.random.normal(size=(NSAMPLE, 2)))  # random noise
     x_data = np.concatenate((np.sin(c1), np.cos(c2)), axis=1) + r_data
 
-    f, axarr = plt.subplots(2, sharex=True)
-    f.suptitle('Generated Training Data')
-    axarr[0].scatter(x_data[:, 0], x_data[:, 1])
-    axarr[1].scatter(y_data[:, 0], y_data[:, 1])
+    # Plot the data 
+    # f, axarr = plt.subplots(2, sharex=True)
+    # f.suptitle('Generated Training Data')
+    # axarr[0].scatter(x_data[:, 0], y_data[:, 0])
+    # axarr[1].scatter(x_data[:, 1], y_data[:, 1])
     # plt.show()
 
     return x_data, y_data
@@ -38,6 +40,7 @@ x_test = x_test.reshape(NTEST, 1)  # needs to be a matrix, not a vector
 x_test = np.concatenate((x_test, x_test), axis=1)
 
 
+# Get mixture coefficients from the network output
 def get_mixture_coef(output):
     out_pi = tf.placeholder(dtype=tf.float32, shape=[None, KMIX], name="out_pi")
     out_sigma = tf.placeholder(dtype=tf.float32, shape=[None, KMIX, 2], name="out_sigma")
@@ -66,6 +69,7 @@ def get_mixture_coef(output):
     return out_pi, out_mu, out_sigma, out_rho
 
 
+# Compute Normal distribution for 2D data
 def tf_normal(y, mu, sigma, rho):
     print(mu[:, :, 0], y[:, 0])
     z_1 = tf.divide(tf.square(tf.subtract(mu[:, :, 0], tf.expand_dims(y[:, 0], -1))),
@@ -93,6 +97,7 @@ def tf_normal(y, mu, sigma, rho):
     return N
 
 
+# Calculate Loss : -log(Probability)
 def get_lossfunc(out_pi, out_mu, out_sigma, out_rho, y):
     result = tf_normal(y, out_mu, out_sigma, out_rho)
     result = tf.multiply(result, out_pi)
@@ -101,6 +106,7 @@ def get_lossfunc(out_pi, out_mu, out_sigma, out_rho, y):
     return tf.reduce_mean(result)
 
 
+# The model
 def model():
     # Placeholders
     x = tf.placeholder(dtype=tf.float32, shape=[None, 2], name="x")
@@ -123,6 +129,7 @@ def model():
     return x, y, output
 
 
+# Trainer
 def train(NEPOCH=1000, mode="new"):
     x, y, model_op = model()
 
@@ -151,12 +158,15 @@ def train(NEPOCH=1000, mode="new"):
             if not math.isnan(loss[i]):
                 saver.save(sess, save_path)
 
-    # Plot loss
+    # Plot loss at the end of training
     plt.figure(figsize=(8, 8))
     plt.plot(np.arange(100, NEPOCH, 1), loss[100:], 'r-')
     plt.show()
 
 
+# The next two functions are used for sampling data
+
+# Select a Probab. Dist. randomly
 def get_pi_idx(x, pdf):
     N = pdf.size
     accumulate = 0
@@ -168,6 +178,7 @@ def get_pi_idx(x, pdf):
     return -1
 
 
+# Sample points from a selected distribution
 def generate_ensemble(out_pi, out_mu, out_sigma, out_rho, M=10):
     NTEST = x_test.shape[0]
     result = np.random.rand(NTEST, 2, M)  # initially random [0, 1]
@@ -180,7 +191,6 @@ def generate_ensemble(out_pi, out_mu, out_sigma, out_rho, M=10):
 
     # transforms result into random ensembles
     # FORMULA
-
     # u = mu1 + sigma1 * x1
     # v = mu2 + sigma2 * (rho * x1 + sqrt(1 - rho^2) * x2)
 
@@ -203,6 +213,7 @@ def generate_ensemble(out_pi, out_mu, out_sigma, out_rho, M=10):
     return result
 
 
+# Test and Visualize
 def test():
     x, y, model_op = model()
 
@@ -216,8 +227,8 @@ def test():
 
     y_test = generate_ensemble(out_pi_test, out_mu_test, out_sigma_test, out_rho_test)
 
-    print("y_test.shape", y_test.shape)
-    print("x_test.shape", x_test.shape)
+    # print("y_test.shape", y_test.shape)
+    # print("x_test.shape", x_test.shape)
 
     plt.figure(figsize=(8, 8))
     plt.plot(x_data[:, 0], y_data[:, 0], 'ro', x_test[:, 0:1], y_test[:, 0, :], 'bo', alpha=0.3)
@@ -227,53 +238,15 @@ def test():
     plt.plot(x_data[:, 1], y_data[:, 1], 'ro', x_test[:, 1:], y_test[:, 0, :], 'bo', alpha=0.3)
     plt.show()
 
-    print("y_test[:, 0, :]", y_test[:, 0, :].shape)
-    print("x_test[:, 0]", x_test[:, 0].shape)
-
 
 if __name__ == "__main__":
+    # Task can either be "train" or "test"
     # mode can either be "load" or "new"
-    #mode = "new"
+
     mode = "load"
-    #task = "train"
     task = "test"
 
     if task is "train":
         train(NEPOCH=10000, mode=mode)
     elif task is "test":
         test()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

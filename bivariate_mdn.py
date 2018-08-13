@@ -165,7 +165,6 @@ def train(NEPOCH=1000, mode="new"):
 
 
 # The next two functions are used for sampling data
-
 # Select a Probab. Dist. randomly
 def get_pi_idx(x, pdf):
     N = pdf.size
@@ -183,11 +182,6 @@ def generate_ensemble(out_pi, out_mu, out_sigma, out_rho, M=10):
     NTEST = x_test.shape[0]
     result = np.random.rand(NTEST, 2, M)  # initially random [0, 1]
     rn = np.random.randn(NTEST, 2, M)  # normal random matrix (0.0, 1.0)
-
-    mu = 0.
-    std = 0.
-    idx = 0.
-    rho = 0.
 
     # transforms result into random ensembles
     # FORMULA
